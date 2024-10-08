@@ -1,0 +1,45 @@
+import javax.sound.sampled.*;
+import java.io.*;
+import java.net.*;
+
+public class VoiceSender {
+    private static final int BUFFER_SIZE = 1024;
+    private static final String SERVER_ADDRESS = "localhost"; // Change to receiver's IP
+    private static final int SERVER_PORT = 50005;
+
+    public static void main(String[] args) throws Exception {
+        // Set up audio format
+        AudioFormat format = new AudioFormat(16000, 16, 1, true, true);
+        DataLine.Info info = new DataLine.Info(TargetDataLine.class, format);
+        TargetDataLine targetLine = (TargetDataLine) AudioSystem.getLine(info);
+        targetLine.open(format);
+        targetLine.start();
+
+        // Set up socket for transmission
+        Socket socket = new Socket(SERVER_ADDRESS, SERVER_PORT);
+        OutputStream outputStream = socket.getOutputStream();
+
+        byte[] buffer = new byte[BUFFER_SIZE];
+
+        System.out.println("Recording and sending audio...");
+        
+        while (true) {
+            int bytesRead = targetLine.read(buffer, 0, buffer.length);
+            // Simple speech detection (threshold)
+            if (isSpeechDetected(buffer, bytesRead)) {
+                outputStream.write(buffer, 0, bytesRead);
+            }
+        }
+    }
+
+    private static boolean isSpeechDetected(byte[] buffer, int bytesRead) {
+        int threshold = 1000; // Adjust threshold based on environment
+        for (int i = 0; i < bytesRead; i += 2) { // Skip every other byte
+            int sample = ((buffer[i + 1] << 8) | (buffer[i] & 0xFF)); // Convert to sample
+            if (Math.abs(sample) > threshold) {
+                return true;
+            }
+        }
+        return false;
+    }
+}
